@@ -1,0 +1,236 @@
+name: pipeline
+
+on:
+  push:
+    branches:
+      - develop
+      - feat/*
+      - hotfix/*
+      - main
+  pull_request:
+    branches:
+      - develop
+      - feat/*
+      - hotfix/*
+      - main
+
+env:
+  TERRAFORM_VERSION: 1.5.0
+  KUBELOGIN_VERSION: 0.0.30
+
+jobs:
+  init:
+    name: Init
+    runs-on: ubuntu-22.04
+    outputs:
+      BRANCH: ${{ steps.branch.outputs.branch }}
+      VERSION_FULL: ${{ steps.version.outputs.version_full }}
+      VERSION: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3.5.2
+        with:
+          # We need all Git history for "version.sh"
+          fetch-depth: 0
+          # Ensure "version.sh" submodule are up-to-date
+          submodules: recursive
+
+      - name: Version
+        id: version
+        run: |
+          echo "version_full=$(bash cicd/version/version.sh -g . -c -m)" >> $GITHUB_OUTPUT
+          echo "version=$(bash cicd/version/version.sh -g . -c)" >> $GITHUB_OUTPUT
+
+      - name: Store branch
+        id: branch
+        run: |
+          branch=$(echo "${{ github.ref_name }}" | sed 's/\//-/g')
+          echo "branch=$branch" >> $GITHUB_OUTPUT
+
+  sast-creds:
+    name: SAST - Credentials
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3.5.2
+        with:
+          # We need all Git history for testing credentials
+          fetch-depth: 0
+          # Ensure all submodules up-to-date
+          submodules: recursive
+
+      - name: SAST - Credentials
+        uses: trufflesecurity/trufflehog@v3.33.0
+        with:
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
+          path: .
+
+  sast-semgrep:
+    name: SAST - Semgrep
+    runs-on: ubuntu-22.04
+    permissions:
+      # Allow to write to GitHub Security
+      security-events: write
+    container:
+      image: returntocorp/semgrep
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3.5.2
+
+      - name: Run tests
+        # Semgrep can be used to break the build when it detects security issues. In this case we want to upload the issues to GitHub Security
+        continue-on-error: true
+        env:
+          SEMGREP_RULES: p/cwe-top-25 p/owasp-top-ten p/terraform
+        run: semgrep ci --sarif --output=semgrep.sarif
+
+      - name: Upload results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v2.2.12
+        with:
+          sarif_file: semgrep.sarif
+
+  test-terraform:
+    name: Test - Terraform
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        path: [lz, apps]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3.5.2
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2.0.3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+
+      - name: Initialize
+        working-directory: ${{ matrix.path }}/terraform
+        run: terraform init -input=false -no-color
+
+      - name: Validate sources
+        working-directory: ${{ matrix.path }}/terraform
+        run: terraform validate -no-color
+
+  delpoy-lz:
+    name: Deploy - Landing Zone
+    runs-on: ubuntu-22.04
+    needs:
+      - init
+      - sast-creds
+      - sast-semgrep
+      - test-terraform
+    environment:
+      name: ${{ needs.init.outputs.BRANCH }}
+    env:
+      # Terraform provider AzureRM
+      ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
+      ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+      ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
+      # Terraform variables
+      TF_VAR_app_version: ${{ needs.init.outputs.VERSION_FULL }}
+    outputs:
+      AKS_API_HOST: ${{ steps.output.outputs.aks_api_host }}
+      AKS_NAME: ${{ steps.output.outputs.aks_name }}
+      RG_DEFAULT_NAME: ${{ steps.output.outputs.rg_default_name }}
+      RG_MONITORING_NAME: ${{ steps.output.outputs.rg_monitoring_name }}
+      SPN_CLIENT_ID: ${{ steps.output.outputs.spn_client_id }}
+      SPN_CLIENT_SECRET: ${{ steps.output.outputs.spn_client_secret }}
+    defaults:
+      run:
+        working-directory: lz
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3.5.2
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2.0.3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+
+      - name: Backend and variables
+        run: |
+          cp config/${{ needs.init.outputs.BRANCH }}.backend.tf terraform/backend.tf
+          cp config/${{ needs.init.outputs.BRANCH }}.tfvars.json terraform/tfvars.json
+
+      - name: Initialize
+        run: terraform -chdir=terraform init -input=false -no-color
+
+      - name: Plan changes
+        run: terraform -chdir=terraform plan -input=false -no-color -lock-timeout=1h -out=tfplan -var-file=tfvars.json
+
+      - name: Apply changes
+        run: terraform -chdir=terraform apply -input=false -no-color -auto-approve tfplan
+
+      - name: Store output
+        id: output
+        run: |
+          echo "aks_api_host=$(terraform -chdir=terraform output -raw aks_api_host)" >> $GITHUB_OUTPUT
+          echo "aks_name=$(terraform -chdir=terraform output -raw aks_name)" >> $GITHUB_OUTPUT
+          echo "rg_default_name=$(terraform -chdir=terraform output -raw rg_default_name)" >> $GITHUB_OUTPUT
+          echo "rg_monitoring_name=$(terraform -chdir=terraform output -raw rg_monitoring_name)" >> $GITHUB_OUTPUT
+          echo "spn_client_id=$(terraform -chdir=terraform output -raw spn_client_id)" >> $GITHUB_OUTPUT
+          echo "spn_client_secret=$(terraform -chdir=terraform output -raw spn_client_secret)" >> $GITHUB_OUTPUT
+
+  delpoy-apps:
+    name: Deploy - Applications
+    runs-on: ubuntu-22.04
+    needs:
+      - init
+      - delpoy-lz
+    environment:
+      name: ${{ needs.init.outputs.BRANCH }}
+      url: https://${{ steps.output.outputs.traefik_fqdn }}
+    env:
+      # Terraform provider AzureRM
+      ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
+      ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+      ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
+      # Terraform variables
+      TF_VAR_aks_api_host: ${{ needs.delpoy-lz.outputs.AKS_API_HOST }}
+      TF_VAR_aks_name: ${{ needs.delpoy-lz.outputs.AKS_NAME }}
+      TF_VAR_app_version: ${{ needs.init.outputs.VERSION_FULL }}
+      TF_VAR_rg_name: ${{ needs.delpoy-lz.outputs.RG_DEFAULT_NAME }}
+      TF_VAR_spn_client_id: ${{ needs.delpoy-lz.outputs.SPN_CLIENT_ID }}
+      TF_VAR_spn_client_secret: ${{ needs.delpoy-lz.outputs.SPN_CLIENT_SECRET }}
+    defaults:
+      run:
+        working-directory: apps
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3.5.2
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2.0.3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+
+      - name: Setup kubelogin
+        uses: azure/use-kubelogin@v1
+        with:
+          kubelogin-version: v${{ env.KUBELOGIN_VERSION }}
+
+      - name: Backend and variables
+        run: |
+          cp config/${{ needs.init.outputs.BRANCH }}.backend.tf terraform/backend.tf
+          cp config/${{ needs.init.outputs.BRANCH }}.tfvars.json terraform/tfvars.json
+
+      - name: Initialize
+        run: terraform -chdir=terraform init -input=false -no-color
+
+      - name: Plan changes
+        run: terraform -chdir=terraform plan -input=false -no-color -lock-timeout=1h -out=tfplan -var-file=tfvars.json
+
+      - name: Apply changes
+        run: terraform -chdir=terraform apply -input=false -no-color -auto-approve tfplan
+
+      - name: Store output
+        id: output
+        run: |
+          echo "traefik_fqdn=$(terraform -chdir=terraform output -raw traefik_fqdn)" >> $GITHUB_OUTPUT

@@ -3,30 +3,28 @@ locals {
 }
 
 resource "kubernetes_namespace" "traefik" {
-  depends_on = [time_sleep.wait_for_ad]
-
   metadata {
     name = local.traefik_name
   }
 }
 
 resource "helm_release" "traefik" {
-  atomic     = true
-  chart      = "traefik"
-  name       = local.traefik_name
-  namespace  = kubernetes_namespace.traefik.metadata[0].name
-  repository = "https://traefik.github.io/charts"
-  version    = "23.1.0"
-  wait       = true
+  atomic       = true
+  chart        = "traefik"
+  name         = local.traefik_name
+  namespace    = kubernetes_namespace.traefik.metadata[0].name
+  repository   = "https://traefik.github.io/charts"
   reset_values = true
+  version      = "23.1.0"
+  wait         = true
 
   values = [
     <<EOF
     service:
       spec:
         loadBalancerIP: ${azurerm_public_ip.traefik.ip_address}
-        annotations:
-          service.beta.kubernetes.io/azure-load-balancer-resource-group: ${module.rg_default.name}
+      annotations:
+        service.beta.kubernetes.io/azure-load-balancer-resource-group: ${data.azurerm_resource_group.this.name}
     ports:
       web:
         redirectTo: websecure
@@ -49,6 +47,8 @@ resource "helm_release" "traefik" {
               type: Utilization
     EOF
   ]
+
+  depends_on = [azurerm_public_ip.traefik, azurerm_role_assignment.traefik]
 }
 
 resource "random_string" "dns_suffix" {
@@ -60,10 +60,10 @@ resource "random_string" "dns_suffix" {
 
 resource "azurerm_public_ip" "traefik" {
   allocation_method   = "Static"
-  domain_name_label   = "${module.rg_default.name}-${random_string.dns_suffix.result}"
-  location            = module.rg_default.location
-  name                = "${module.rg_default.name}-${local.traefik_name}"
-  resource_group_name = module.rg_default.name
+  domain_name_label   = "${data.azurerm_resource_group.this.name}-${random_string.dns_suffix.result}"
+  location            = data.azurerm_resource_group.this.location
+  name                = "${data.azurerm_resource_group.this.name}-${local.traefik_name}"
+  resource_group_name = data.azurerm_resource_group.this.name
   sku                 = "Standard"
   zones               = var.zones
 
@@ -72,11 +72,8 @@ resource "azurerm_public_ip" "traefik" {
   }
 }
 
-# add to the kubernetes cluster identity the role Network Contributor on the resource group
-resource "azurerm_role_assignment" "this" {
-  principal_id         = azurerm_kubernetes_cluster.this.identity.0.principal_id
+resource "azurerm_role_assignment" "traefik" {
+  principal_id         = data.azurerm_kubernetes_cluster.this.identity.0.principal_id
   role_definition_name = "Network Contributor"
-  scope                = module.rg_default.id
+  scope                = data.azurerm_resource_group.this.id
 }
-
-# generate a ssl certificate for the public ip

@@ -9,5 +9,14 @@ version:
 version-full:
 	@bash ./version/version.sh -g . -c -m
 
-deploy:
-	@make -C terraform init plan apply
+init:
+	terraform init
+
+plan:
+	terraform plan \
+		-var-file=local.tfvars.json \
+		-out=local.tfplan
+
+apply:
+	terraform apply \
+		local.tfplan

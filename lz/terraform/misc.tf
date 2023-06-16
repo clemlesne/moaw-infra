@@ -1,10 +1,7 @@
-# Reference to the current subscription
 data "azurerm_subscription" "this" {}
 
-# Reference to the current client config
 data "azurerm_client_config" "this" {}
 
-# Reference to the current tenant ID
 data "azuread_client_config" "this" {}
 
 module "rg_default" {
@@ -14,7 +11,8 @@ module "rg_default" {
   prefix   = var.prefix
 
   tags = {
-    usage = "default"
+    usage   = "default"
+    version = var.app_version
   }
 }
 
@@ -25,6 +23,7 @@ module "rg_monitoring" {
   prefix   = "${var.prefix}-monitoring"
 
   tags = {
-    usage = "monitoring"
+    usage   = "monitoring"
+    version = var.app_version
   }
 }

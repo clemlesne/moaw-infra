@@ -1,7 +1,3 @@
-data "azuread_service_principal" "aks" {
-  display_name = "Azure Kubernetes Service AAD Server"
-}
-
 data "azurerm_kubernetes_service_versions" "this" {
   location = module.rg_default.location
 }
@@ -82,22 +78,3 @@ resource "azurerm_kubernetes_cluster_node_pool" "user" {
   vm_size               = "Standard_D8a_v4"
   zones                 = var.zones
 }
-
-# TODO: Find a way to activate (error: https://github.com/hashicorp/terraform-provider-kubernetes-alpha/issues/199)
-# # Default Calico policy for system namespaces
-# resource "kubernetes_manifest" "global_network_policy" {
-#   manifest = {
-#     "apiVersion": "crd.projectcalico.org/v1"
-#     "kind": "GlobalNetworkPolicy"
-#     "metadata": {
-#       "name": "default-deny"
-#     },
-#     "spec": {
-#       "selector": "projectcalico.org/namespace not in {'default', 'kube-system', '${kubernetes_namespace.traefik.metadata[0].name}', '${kubernetes_namespace.prometheus.metadata[0].name}'}"
-#       "types": [
-#         "Ingress",
-#         "Egress"
-#       ]
-#     }
-#   }
-# }

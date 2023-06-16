@@ -24,9 +24,3 @@ resource "azurerm_role_assignment" "sys_admin_spn" {
   scope                            = azurerm_kubernetes_cluster.this.id
   skip_service_principal_aad_check = true
 }
-
-# SPN and roles propagation can last long so waiting 1 min before creating Kubernetes assets
-resource "time_sleep" "wait_for_ad" {
-  create_duration = "1m"
-  depends_on      = [azurerm_role_assignment.sys_admin_spn]
-}

@@ -3,8 +3,6 @@ locals {
 }
 
 resource "kubernetes_namespace" "app" {
-  depends_on = [time_sleep.wait_for_ad]
-
   metadata {
     name = local.app_name
   }
@@ -37,9 +35,9 @@ resource "helm_release" "app" {
 }
 
 resource "azurerm_user_assigned_identity" "app" {
-  location            = module.rg_default.location
-  name                = "${module.rg_default.name}-${local.app_name}"
-  resource_group_name = module.rg_default.name
+  location            = data.azurerm_resource_group.this.location
+  name                = "${data.azurerm_resource_group.this.name}-${local.app_name}"
+  resource_group_name = data.azurerm_resource_group.this.name
 
   lifecycle {
     ignore_changes = [tags]
@@ -48,10 +46,10 @@ resource "azurerm_user_assigned_identity" "app" {
 
 resource "azurerm_federated_identity_credential" "app" {
   audience            = ["api://AzureADTokenExchange"]
-  issuer              = azurerm_kubernetes_cluster.this.oidc_issuer_url
-  name                = "${module.rg_default.name}-${local.app_name}"
+  issuer              = data.azurerm_kubernetes_cluster.this.oidc_issuer_url
+  name                = "${data.azurerm_resource_group.this.name}-${local.app_name}"
   parent_id           = azurerm_user_assigned_identity.app.id
-  resource_group_name = module.rg_default.name
+  resource_group_name = data.azurerm_resource_group.this.name
   subject             = "system:serviceaccount:${kubernetes_namespace.app.metadata[0].name}:${kubernetes_namespace.app.metadata[0].name}"
 }
 
@@ -70,9 +68,9 @@ resource "kubernetes_service_account" "app" {
 
 // ContentSafety is not yet available in the Terraform resource azurerm_cognitive_account ; we first create it then get its metadata
 resource "azapi_resource" "app_acs" {
-  location               = module.rg_default.location
-  name                   = "${module.rg_default.name}-${local.app_name}-acs"
-  parent_id              = module.rg_default.id
+  location               = data.azurerm_resource_group.this.location
+  name                   = "${data.azurerm_resource_group.this.name}-${local.app_name}-acs"
+  parent_id              = data.azurerm_resource_group.this.id
   response_export_values = ["name", "properties.endpoint"]
   type                   = "Microsoft.CognitiveServices/accounts@2022-12-01"
 
@@ -82,7 +80,7 @@ resource "azapi_resource" "app_acs" {
       name = "S0"
     }
     properties = {
-      customSubDomainName = "${module.rg_default.name}-${local.app_name}-acs"
+      customSubDomainName = "${data.azurerm_resource_group.this.name}-${local.app_name}-acs"
     }
   })
 }
@@ -90,23 +88,29 @@ resource "azapi_resource" "app_acs" {
 // ContentSafety is not yet available in the Terraform resource azurerm_cognitive_account ; we first create it then get its metadata
 data "azurerm_cognitive_account" "app_acs" {
   name                = azapi_resource.app_acs.name
-  resource_group_name = module.rg_default.name
+  resource_group_name = data.azurerm_resource_group.this.name
 
   // We need to wait for the resource to be created
   depends_on = [azapi_resource.app_acs]
 }
 
 resource "azurerm_cognitive_account" "app_oai" {
-  custom_subdomain_name = "${module.rg_default.name}-${local.app_name}-oai"  # Required for OpenAI to work
+  custom_subdomain_name = "${data.azurerm_resource_group.this.name}-${local.app_name}-oai" # Required for OpenAI to work
   kind                  = "OpenAI"
-  location              = module.rg_default.location
-  name                  = "${module.rg_default.name}-${local.app_name}-oai"
-  resource_group_name   = module.rg_default.name
-  sku_name              = "S0"  # Only one available for OpenAI as of 14 June 2023
+  location              = data.azurerm_resource_group.this.location
+  name                  = "${data.azurerm_resource_group.this.name}-${local.app_name}-oai"
+  resource_group_name   = data.azurerm_resource_group.this.name
+  sku_name              = "S0" # Only one available for OpenAI as of 14 June 2023
 
   lifecycle {
     ignore_changes = [tags]
   }
+}
+
+# OpenAI Cognitive Account get long to be instanciated and it is not managed in the provider ; waiting 3 mins before creating next assets
+resource "time_sleep" "wait_for_oai" {
+  create_duration = "3m"
+  depends_on      = [azurerm_cognitive_account.app_oai]
 }
 
 resource "azurerm_role_assignment" "app_oai" {
@@ -118,6 +122,8 @@ resource "azurerm_role_assignment" "app_oai" {
 resource "azurerm_cognitive_deployment" "app_ada" {
   cognitive_account_id = azurerm_cognitive_account.app_oai.id
   name                 = "ada"
+
+  depends_on = [time_sleep.wait_for_oai]
 
   model {
     format  = "OpenAI"
@@ -133,6 +139,8 @@ resource "azurerm_cognitive_deployment" "app_ada" {
 resource "azurerm_cognitive_deployment" "app_gpt" {
   cognitive_account_id = azurerm_cognitive_account.app_oai.id
   name                 = "gpt"
+
+  depends_on = [time_sleep.wait_for_oai]
 
   model {
     format  = "OpenAI"
