@@ -14,7 +14,7 @@ resource "helm_release" "app" {
   name       = local.app_name
   namespace  = kubernetes_namespace.app.metadata[0].name
   repository = "https://clemlesne.github.io/moaw-search"
-  version    = "0.9.4"
+  version    = "0.9.5"
   wait       = true
 
   values = [
