@@ -1,0 +1,4 @@
+[submodule "version"]
+	path = version
+	url = https://github.com/clemlesne/gitops-version
+	branch = master
