@@ -9,14 +9,18 @@ version:
 version-full:
 	@bash ./version/version.sh -g . -c -m
 
-init:
-	terraform init
+lint:
+	terraform -chdir=apps/terraform validate
+	terraform -chdir=lz/terraform validate
 
-plan:
-	terraform plan \
-		-var-file=local.tfvars.json \
-		-out=local.tfplan
+# init:
+# 	terraform init
 
-apply:
-	terraform apply \
-		local.tfplan
+# plan:
+# 	terraform plan \
+# 		-var-file=local.tfvars.json \
+# 		-out=local.tfplan
+
+# apply:
+# 	terraform apply \
+# 		local.tfplan

@@ -22,5 +22,7 @@ terraform {
 }
 
 provider "azurerm" {
+  // No configuration is required
+
   features {}
 }

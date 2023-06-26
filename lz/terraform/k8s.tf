@@ -79,3 +79,9 @@ resource "azurerm_kubernetes_cluster_node_pool" "user" {
   vm_size               = "Standard_D8a_v4"
   zones                 = var.zones
 }
+
+resource "azurerm_role_assignment" "sys_admin_user" {
+  principal_id         = data.azuread_client_config.this.object_id
+  role_definition_name = "Azure Kubernetes Service RBAC Cluster Admin"
+  scope                = azurerm_kubernetes_cluster.this.id
+}

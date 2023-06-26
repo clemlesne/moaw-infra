@@ -18,14 +18,3 @@ output "rg_monitoring_name" {
   description = "The name of the monitoring resource group."
   value       = module.rg_monitoring.name
 }
-
-output "spn_client_id" {
-  description = "The client ID of the service principal."
-  value       = azuread_service_principal.sys_spn.application_id
-}
-
-output "spn_client_secret" {
-  description = "The client secret of the service principal."
-  sensitive   = true
-  value       = azuread_application_password.sys_password.value
-}

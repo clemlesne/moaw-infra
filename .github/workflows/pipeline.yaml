@@ -139,8 +139,6 @@ jobs:
       AKS_NAME: ${{ steps.output.outputs.aks_name }}
       RG_DEFAULT_NAME: ${{ steps.output.outputs.rg_default_name }}
       RG_MONITORING_NAME: ${{ steps.output.outputs.rg_monitoring_name }}
-      SPN_CLIENT_ID: ${{ steps.output.outputs.spn_client_id }}
-      SPN_CLIENT_SECRET: ${{ steps.output.outputs.spn_client_secret }}
     defaults:
       run:
         working-directory: lz
@@ -160,13 +158,27 @@ jobs:
           cp config/${{ needs.init.outputs.BRANCH }}.tfvars.json terraform/tfvars.json
 
       - name: Initialize
-        run: terraform -chdir=terraform init -input=false -no-color
+        run: |
+          terraform -chdir=terraform init \
+            -input=false \
+            -no-color
 
       - name: Plan changes
-        run: terraform -chdir=terraform plan -input=false -no-color -lock-timeout=1h -out=tfplan -var-file=tfvars.json
+        run: |
+          terraform -chdir=terraform plan \
+            -input=false \
+            -lock-timeout=1h \
+            -no-color \
+            -out=tfplan \
+            -var-file=tfvars.json
 
       - name: Apply changes
-        run: terraform -chdir=terraform apply -input=false -no-color -auto-approve tfplan
+        run: |
+          terraform -chdir=terraform apply \
+            -auto-approve \
+            -input=false \
+            -no-color \
+            tfplan
 
       - name: Store output
         id: output
@@ -175,8 +187,6 @@ jobs:
           echo "aks_name=$(terraform -chdir=terraform output -raw aks_name)" >> $GITHUB_OUTPUT
           echo "rg_default_name=$(terraform -chdir=terraform output -raw rg_default_name)" >> $GITHUB_OUTPUT
           echo "rg_monitoring_name=$(terraform -chdir=terraform output -raw rg_monitoring_name)" >> $GITHUB_OUTPUT
-          echo "spn_client_id=$(terraform -chdir=terraform output -raw spn_client_id)" >> $GITHUB_OUTPUT
-          echo "spn_client_secret=$(terraform -chdir=terraform output -raw spn_client_secret)" >> $GITHUB_OUTPUT
 
   delpoy-apps:
     name: Deploy - Applications
@@ -193,13 +203,15 @@ jobs:
       ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
       ARM_SUBSCRIPTION_ID: ${{ vars.ARM_SUBSCRIPTION_ID }}
       ARM_TENANT_ID: ${{ vars.ARM_TENANT_ID }}
+      ARM_USE_CLI: false # TEST
+      # Terraform provider Kubernetes
+      KUBE_CONFIG_PATH: ~/.kube/config
       # Terraform variables
+      TF_LOG: DEBUG
       TF_VAR_aks_api_host: ${{ needs.delpoy-lz.outputs.AKS_API_HOST }}
       TF_VAR_aks_name: ${{ needs.delpoy-lz.outputs.AKS_NAME }}
       TF_VAR_app_version: ${{ needs.init.outputs.VERSION_FULL }}
       TF_VAR_rg_name: ${{ needs.delpoy-lz.outputs.RG_DEFAULT_NAME }}
-      TF_VAR_spn_client_id: ${{ needs.delpoy-lz.outputs.SPN_CLIENT_ID }}
-      TF_VAR_spn_client_secret: ${{ needs.delpoy-lz.outputs.SPN_CLIENT_SECRET }}
     defaults:
       run:
         working-directory: apps
@@ -223,14 +235,50 @@ jobs:
           cp config/${{ needs.init.outputs.BRANCH }}.backend.tf terraform/backend.tf
           cp config/${{ needs.init.outputs.BRANCH }}.tfvars.json terraform/tfvars.json
 
+      - name: Login to Azure
+        uses: azure/login@v1.4.7
+        with:
+          creds: |
+            {
+              "clientId": "${{ env.ARM_CLIENT_ID }}",
+              "clientSecret": "${{ env.ARM_CLIENT_SECRET }}",
+              "subscriptionId": "${{ env.ARM_SUBSCRIPTION_ID }}",
+              "tenantId": "${{ env.ARM_TENANT_ID }}"
+            }
+
+      - name: Login to AKS
+        run: |
+          az aks get-credentials \
+            --context default \
+            --file ${{ env.KUBE_CONFIG_PATH }} \
+            --name ${{ env.TF_VAR_aks_name }} \
+            --resource-group ${{ env.TF_VAR_rg_name }}
+
+          kubelogin convert-kubeconfig \
+            --kubeconfig ${{ env.KUBE_CONFIG_PATH }}
+
       - name: Initialize
-        run: terraform -chdir=terraform init -input=false -no-color
+        run: |
+          terraform -chdir=terraform init \
+            -input=false \
+            -no-color
 
       - name: Plan changes
-        run: terraform -chdir=terraform plan -input=false -no-color -lock-timeout=1h -out=tfplan -var-file=tfvars.json
+        run: |
+          terraform -chdir=terraform plan \
+            -input=false \
+            -lock-timeout=1h \
+            -no-color \
+            -out=tfplan \
+            -var-file=tfvars.json
 
       - name: Apply changes
-        run: terraform -chdir=terraform apply -input=false -no-color -auto-approve tfplan
+        run: |
+          terraform -chdir=terraform apply \
+            -auto-approve \
+            -input=false \
+            -no-color \
+            tfplan
 
       - name: Store output
         id: output
