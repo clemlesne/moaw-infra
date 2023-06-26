@@ -1,5 +1,6 @@
 data "azurerm_kubernetes_service_versions" "this" {
-  location = module.rg_default.location
+  include_preview = false
+  location        = module.rg_default.location
 }
 
 resource "random_string" "temporary_name_for_rotation" {
