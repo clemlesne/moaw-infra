@@ -15,7 +15,9 @@ on:
       - main
 
 env:
+  # https://github.com/hashicorp/terraform/releases
   TERRAFORM_VERSION: 1.5.0
+  # https://github.com/Azure/kubelogin/releases
   KUBELOGIN_VERSION: 0.0.30
 
 jobs:
