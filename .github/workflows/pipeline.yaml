@@ -157,6 +157,12 @@ jobs:
           cp config/${{ needs.init.outputs.BRANCH }}.backend.tf terraform/backend.tf
           cp config/${{ needs.init.outputs.BRANCH }}.tfvars.json terraform/tfvars.json
 
+      - name: Cache Terraform
+        uses: actions/cache@v3.3.1
+        with:
+          path: .terraform
+          key: terraform-${{ runner.os }}-${{ hashFiles('**/.terraform.lock.hcl') }}
+
       - name: Initialize
         run: |
           terraform -chdir=terraform init \
@@ -256,6 +262,12 @@ jobs:
 
           kubelogin convert-kubeconfig \
             --kubeconfig ${{ env.KUBE_CONFIG_PATH }}
+
+      - name: Cache Terraform
+        uses: actions/cache@v3.3.1
+        with:
+          path: .terraform
+          key: terraform-${{ runner.os }}-${{ hashFiles('**/.terraform.lock.hcl') }}
 
       - name: Initialize
         run: |
