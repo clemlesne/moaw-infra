@@ -15,7 +15,9 @@ on:
       - main
 
 env:
+  # https://github.com/hashicorp/terraform/releases
   TERRAFORM_VERSION: 1.5.0
+  # https://github.com/Azure/kubelogin/releases
   KUBELOGIN_VERSION: 0.0.30
 
 jobs:
@@ -126,10 +128,10 @@ jobs:
       name: ${{ needs.init.outputs.BRANCH }}
     env:
       # Terraform provider AzureRM
-      ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
+      ARM_CLIENT_ID: ${{ vars.ARM_CLIENT_ID }}
       ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
-      ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
-      ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ vars.ARM_SUBSCRIPTION_ID }}
+      ARM_TENANT_ID: ${{ vars.ARM_TENANT_ID }}
       # Terraform variables
       TF_VAR_app_version: ${{ needs.init.outputs.VERSION_FULL }}
     outputs:
@@ -187,10 +189,10 @@ jobs:
       url: https://${{ steps.output.outputs.traefik_fqdn }}
     env:
       # Terraform provider AzureRM
-      ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
+      ARM_CLIENT_ID: ${{ vars.ARM_CLIENT_ID }}
       ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
-      ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
-      ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ vars.ARM_SUBSCRIPTION_ID }}
+      ARM_TENANT_ID: ${{ vars.ARM_TENANT_ID }}
       # Terraform variables
       TF_VAR_aks_api_host: ${{ needs.delpoy-lz.outputs.AKS_API_HOST }}
       TF_VAR_aks_name: ${{ needs.delpoy-lz.outputs.AKS_NAME }}
