@@ -4,7 +4,15 @@ Backend IaC for the Microsoft MAOW workshops.
 
 ## Getting started
 
-Configure authentication for Terraform:
+Enable preview features:
 
-1. Create a Service Principal
-2. Allow `Application.ReadWrite.All` and `Directory.ReadWrite.All` permissions
+```bash
+# KEDA preview (AKS)
+az feature register --namespace "Microsoft.ContainerService" --name "AKS-KedaPreview"
+
+# Image Cleaner preview (AKS)
+az feature register --namespace "Microsoft.ContainerService" --name "EnableImageCleanerPreview"
+
+# Vertical Pod Autoscaler preview (AKS)
+az feature register --namespace "Microsoft.ContainerService" --name "AKS-VPAPreview"
+```
