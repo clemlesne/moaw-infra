@@ -40,6 +40,7 @@ provider "kubernetes" {
     args = [
       "get-token",
       "--login", "spn",
+      "--server-id", data.azuread_service_principal.aks.application_id,
       "--use-azurerm-env-vars",
     ]
   }
@@ -56,6 +57,7 @@ provider "helm" {
       args = [
         "get-token",
         "--login", "spn",
+        "--server-id", data.azuread_service_principal.aks.application_id,
         "--use-azurerm-env-vars",
       ]
     }
