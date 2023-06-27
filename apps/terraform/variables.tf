@@ -17,3 +17,16 @@ variable "rg_name" {
   type        = string
   description = "The name of the default resource group."
 }
+
+variable "aks_api_host" {
+  type        = string
+}
+
+variable "spn_client_id" {
+  type        = string
+}
+
+variable "spn_client_secret" {
+  sensitive   = true
+  type        = string
+}

@@ -31,9 +31,39 @@ provider "azurerm" {
 }
 
 provider "kubernetes" {
-  // No configuration is required
+  cluster_ca_certificate = base64decode(data.azurerm_kubernetes_cluster.this.kube_config.0.cluster_ca_certificate)
+  host                   = var.aks_api_host
+
+  exec {
+    api_version = "client.authentication.k8s.io/v1beta1"
+    command     = "kubelogin"
+    args = [
+      "get-token",
+      "--client-id", var.spn_client_id,
+      "--client-secret", var.spn_client_secret,
+      "--login", "spn",
+      "--server-id", data.azuread_service_principal.aks.application_id,
+      "--tenant-id", data.azurerm_subscription.this.tenant_id,
+    ]
+  }
 }
 
 provider "helm" {
-  // No configuration is required
+  kubernetes {
+    cluster_ca_certificate = base64decode(data.azurerm_kubernetes_cluster.this.kube_config.0.cluster_ca_certificate)
+    host                   = var.aks_api_host
+
+    exec {
+      api_version = "client.authentication.k8s.io/v1beta1"
+      command     = "kubelogin"
+      args = [
+        "get-token",
+        "--client-id", var.spn_client_id,
+        "--client-secret", var.spn_client_secret,
+        "--login", "spn",
+        "--server-id", data.azuread_service_principal.aks.application_id,
+        "--tenant-id", data.azurerm_subscription.this.tenant_id,
+      ]
+    }
+  }
 }
