@@ -209,7 +209,7 @@ jobs:
       ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
       ARM_SUBSCRIPTION_ID: ${{ vars.ARM_SUBSCRIPTION_ID }}
       ARM_TENANT_ID: ${{ vars.ARM_TENANT_ID }}
-      ARM_USE_CLI: false # TEST
+      # ARM_USE_CLI: false # TEST
       # Terraform provider Kubernetes
       KUBE_CONFIG_PATH: ~/.kube/config
       # Terraform variables
@@ -240,28 +240,6 @@ jobs:
         run: |
           cp config/${{ needs.init.outputs.BRANCH }}.backend.tf terraform/backend.tf
           cp config/${{ needs.init.outputs.BRANCH }}.tfvars.json terraform/tfvars.json
-
-      - name: Login to Azure
-        uses: azure/login@v1.4.7
-        with:
-          creds: |
-            {
-              "clientId": "${{ env.ARM_CLIENT_ID }}",
-              "clientSecret": "${{ env.ARM_CLIENT_SECRET }}",
-              "subscriptionId": "${{ env.ARM_SUBSCRIPTION_ID }}",
-              "tenantId": "${{ env.ARM_TENANT_ID }}"
-            }
-
-      - name: Login to AKS
-        run: |
-          az aks get-credentials \
-            --context default \
-            --file ${{ env.KUBE_CONFIG_PATH }} \
-            --name ${{ env.TF_VAR_aks_name }} \
-            --resource-group ${{ env.TF_VAR_rg_name }}
-
-          kubelogin convert-kubeconfig \
-            --kubeconfig ${{ env.KUBE_CONFIG_PATH }}
 
       - name: Cache Terraform
         uses: actions/cache@v3.3.1

@@ -17,3 +17,7 @@ variable "rg_name" {
   type        = string
   description = "The name of the default resource group."
 }
+
+variable "aks_api_host" {
+  type        = string
+}

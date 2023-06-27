@@ -31,9 +31,33 @@ provider "azurerm" {
 }
 
 provider "kubernetes" {
-  // No configuration is required
+  cluster_ca_certificate = base64decode(data.azurerm_kubernetes_cluster.this.kube_config.0.cluster_ca_certificate)
+  host                   = var.aks_api_host
+
+  exec {
+    api_version = "client.authentication.k8s.io/v1beta1"
+    command     = "kubelogin"
+    args = [
+      "get-token",
+      "--login", "spn",
+      "--use-azurerm-env-vars",
+    ]
+  }
 }
 
 provider "helm" {
-  // No configuration is required
+  kubernetes {
+    cluster_ca_certificate = base64decode(data.azurerm_kubernetes_cluster.this.kube_config.0.cluster_ca_certificate)
+    host                   = var.aks_api_host
+
+    exec {
+      api_version = "client.authentication.k8s.io/v1beta1"
+      command     = "kubelogin"
+      args = [
+        "get-token",
+        "--login", "spn",
+        "--use-azurerm-env-vars",
+      ]
+    }
+  }
 }
