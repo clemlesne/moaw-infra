@@ -21,3 +21,12 @@ variable "rg_name" {
 variable "aks_api_host" {
   type        = string
 }
+
+variable "spn_client_id" {
+  type        = string
+}
+
+variable "spn_client_secret" {
+  sensitive   = true
+  type        = string
+}

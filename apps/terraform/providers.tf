@@ -25,7 +25,8 @@ terraform {
 }
 
 provider "azurerm" {
-  // No configuration is required
+  client_id = var.spn_client_id
+  client_secret = var.spn_client_secret
 
   features {}
 }
@@ -39,9 +40,11 @@ provider "kubernetes" {
     command     = "kubelogin"
     args = [
       "get-token",
+      "--client-id", var.spn_client_id,
+      "--client-secret", var.spn_client_secret,
       "--login", "spn",
       "--server-id", data.azuread_service_principal.aks.application_id,
-      "--use-azurerm-env-vars",
+      "--tenant-id", data.azurerm_subscription.this.tenant_id,
     ]
   }
 }
@@ -56,9 +59,11 @@ provider "helm" {
       command     = "kubelogin"
       args = [
         "get-token",
+        "--client-id", var.spn_client_id,
+        "--client-secret", var.spn_client_secret,
         "--login", "spn",
         "--server-id", data.azuread_service_principal.aks.application_id,
-        "--use-azurerm-env-vars",
+        "--tenant-id", data.azurerm_subscription.this.tenant_id,
       ]
     }
   }

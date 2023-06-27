@@ -205,19 +205,15 @@ jobs:
       url: https://${{ steps.output.outputs.traefik_fqdn }}
     env:
       # Terraform provider AzureRM
-      ARM_CLIENT_ID: ${{ vars.ARM_CLIENT_ID }}
-      ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
       ARM_SUBSCRIPTION_ID: ${{ vars.ARM_SUBSCRIPTION_ID }}
       ARM_TENANT_ID: ${{ vars.ARM_TENANT_ID }}
-      # ARM_USE_CLI: false # TEST
-      # Terraform provider Kubernetes
-      KUBE_CONFIG_PATH: ~/.kube/config
       # Terraform variables
-      TF_LOG: DEBUG
       TF_VAR_aks_api_host: ${{ needs.delpoy-lz.outputs.AKS_API_HOST }}
       TF_VAR_aks_name: ${{ needs.delpoy-lz.outputs.AKS_NAME }}
       TF_VAR_app_version: ${{ needs.init.outputs.VERSION_FULL }}
       TF_VAR_rg_name: ${{ needs.delpoy-lz.outputs.RG_DEFAULT_NAME }}
+      TF_VAR_spn_client_id: ${{ vars.ARM_CLIENT_ID }}
+      TF_VAR_spn_client_secret: ${{ secrets.ARM_CLIENT_SECRET }}
     defaults:
       run:
         working-directory: apps
