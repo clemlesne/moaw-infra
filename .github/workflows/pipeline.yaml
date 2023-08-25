@@ -30,7 +30,7 @@ jobs:
       VERSION: ${{ steps.version.outputs.version }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3.5.3
+        uses: actions/checkout@v3.6.0
         with:
           # We need all Git history for "version.sh"
           fetch-depth: 0
@@ -54,7 +54,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v3.5.3
+        uses: actions/checkout@v3.6.0
         with:
           # We need all Git history for testing credentials
           fetch-depth: 0
@@ -78,7 +78,7 @@ jobs:
       image: returntocorp/semgrep
     steps:
       - name: Checkout
-        uses: actions/checkout@v3.5.3
+        uses: actions/checkout@v3.6.0
 
       - name: Run tests
         # Semgrep can be used to break the build when it detects security issues. In this case we want to upload the issues to GitHub Security
@@ -100,7 +100,7 @@ jobs:
         path: [lz, apps]
     steps:
       - name: Checkout
-        uses: actions/checkout@v3.5.3
+        uses: actions/checkout@v3.6.0
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2.0.3
@@ -144,7 +144,7 @@ jobs:
         working-directory: lz
     steps:
       - name: Checkout
-        uses: actions/checkout@v3.5.3
+        uses: actions/checkout@v3.6.0
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2.0.3
@@ -221,7 +221,7 @@ jobs:
         working-directory: apps
     steps:
       - name: Checkout
-        uses: actions/checkout@v3.5.3
+        uses: actions/checkout@v3.6.0
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2.0.3
