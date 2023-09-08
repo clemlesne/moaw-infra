@@ -158,7 +158,7 @@ jobs:
           cp config/${{ needs.init.outputs.BRANCH }}.tfvars.json terraform/tfvars.json
 
       - name: Cache Terraform
-        uses: actions/cache@v3.3.1
+        uses: actions/cache@v3.3.2
         with:
           path: .terraform
           key: terraform-${{ runner.os }}-${{ hashFiles('**/.terraform.lock.hcl') }}
@@ -240,7 +240,7 @@ jobs:
           cp config/${{ needs.init.outputs.BRANCH }}.tfvars.json terraform/tfvars.json
 
       - name: Cache Terraform
-        uses: actions/cache@v3.3.1
+        uses: actions/cache@v3.3.2
         with:
           path: .terraform
           key: terraform-${{ runner.os }}-${{ hashFiles('**/.terraform.lock.hcl') }}
